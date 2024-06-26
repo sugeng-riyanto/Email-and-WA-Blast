@@ -1,22 +1,15 @@
-import os
-from xvfbwrapper import Xvfb
-
-# Start the virtual display
-vdisplay = Xvfb()
-vdisplay.start()
-
+import streamlit as st
+import pandas as pd
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from openpyxl import load_workbook
 import pywhatkit as kit
-import pyautogui as pg
 import time
 import warnings
-import streamlit as st
-import pandas as pd
-
-warnings.filterwarnings("ignore")
+import webbrowser
+import pyautogui
+import os
 
 def apply_dark_mode():
     dark_mode_css = """
@@ -39,6 +32,8 @@ def apply_dark_mode():
     st.markdown(dark_mode_css, unsafe_allow_html=True)
 
 apply_dark_mode()
+# Suppress specific warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 # SMTP configuration
 your_name = "Sekolah Harapan Bangsa"
@@ -49,22 +44,25 @@ server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
 server.ehlo()
 server.login(your_email, your_password)
 
+# Utility function to check allowed file extensions
 ALLOWED_EXTENSIONS = {'xlsx'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def send_whatsapp_messages(data, announcement=False, invoice=False, proof_payment=False):
-    # Open WhatsApp Web
-    kit.sendwhatmsg("+0000000000", "", 0, 0, wait_time=20, tab_close=True)  # Dummy message to open WhatsApp Web
+    # Open WhatsApp Web once
+    webbrowser.open("https://web.whatsapp.com")
     st.info("Please scan the QR code in the opened WhatsApp Web window.")
+    
+    # Wait for user to scan QR code and login (increase if needed)
     time.sleep(45)
 
     for index, row in data.iterrows():
         phone_number = str(row['Phone Number'])
         if not phone_number.startswith('+62'):
             phone_number = f'+62{phone_number.lstrip("0")}'
-
+        
         if announcement:
             message = f"""
             Kepada Yth. Orang Tua/Wali Murid *{row['Nama_Siswa']}*,
@@ -114,13 +112,19 @@ def send_whatsapp_messages(data, announcement=False, invoice=False, proof_paymen
 
         while True:
             try:
+                # Send WhatsApp message using the existing session
                 kit.sendwhatmsg_instantly(phone_number, message, wait_time=20)
+                
+                # Wait for 20 seconds to ensure the message is sent
                 time.sleep(20)
                 st.success(f"Message sent successfully to {phone_number}")
-                break
+                break  # Exit the loop if the message is sent successfully
             except Exception as e:
                 st.error(f"Failed to send message to {phone_number}: {str(e)}. Retrying...")
-                time.sleep(20)
+                time.sleep(20)  # Wait before retrying
+
+
+# Ensure your DataFrame and main application logic
 
 def send_emails(email_list, announcement=False, invoice=False, proof_payment=False):
     for idx, entry in enumerate(email_list):
@@ -173,27 +177,28 @@ def send_emails(email_list, announcement=False, invoice=False, proof_payment=Fal
             <strong>Bapak Supatmin (Admin SMP & SMA):</strong> <a href='https://bit.ly/wamrsupatminshb4' style="color: #007bff;">https://bit.ly/wamrsupatminshb4</a>
             """
         elif proof_payment:
-            subject = "Bukti Pembayaran"
+            subject = entry['Subject']
+            va = entry['virtual_account']
             name = entry['Nama_Siswa']
-            grade = entry['Grade']
             email = entry['Email']
-            bulan_berjalan = "{:,.2f}".format(entry['bulan_berjalan'])
-            ket_1 = entry['Ket_1']
-            spp_30hari = "{:,.2f}".format(entry['SPP_30hari'])
-            ket_2 = entry['Ket_2']
+            grade = entry['Grade']
+            sppbuljal = "{:,.2f}".format(entry['bulan_berjalan'])
+            ket1 = entry['Ket_1']
+            spplebih = "{:,.2f}".format(entry['SPP_30hari'])
+            ket2 = entry['Ket_2']
             denda = "{:,.2f}".format(entry['Denda'])
-            ket_3 = entry['Ket_3']
-            ket_4 = entry['Ket_4']
+            ket3 = entry['Ket_3']
+            ket4 = entry['Ket_4']
             total = "{:,.2f}".format(entry['Total'])
             message = f"""
             Kepada Yth.<br>Orang Tua/Wali Murid <span style="color: #007bff;">{name}</span> (Kelas <span style="color: #007bff;">{grade}</span>)<br>
             <p>Salam Hormat,</p>
             <p>Kami hendak menyampaikan info mengenai SPP:</p>
             <ul>
-                <li><strong>SPP yang sedang berjalan:</strong> {bulan_berjalan} ({ket_1})</li>
-                <li><strong>SPP bulan-bulan sebelumnya:</strong> {spp_30hari} ({ket_2})</li>
-                <li><strong>Denda:</strong> {denda} ({ket_3})</li>
-                <li><strong>Keterangan:</strong> {ket_4}</li>
+                <li><strong>SPP yang sedang berjalan:</strong> {sppbuljal} ({ket1})</li>
+                <li><strong>Denda:</strong> {denda} ({ket3})</li>
+                <li><strong>SPP bulan-bulan sebelumnya:</strong> {spplebih} ({ket2})</li>
+                <li><strong>Keterangan:</strong> {ket4}</li>
                 <li><strong>Total tagihan:</strong> {total}</li>
             </ul>
             <p>Terima kasih atas kerjasamanya.</p>
@@ -209,75 +214,51 @@ def send_emails(email_list, announcement=False, invoice=False, proof_payment=Fal
         msg['From'] = your_email
         msg['To'] = email
         msg['Subject'] = subject
-
         msg.attach(MIMEText(message, 'html'))
 
         try:
             server.sendmail(your_email, email, msg.as_string())
-            st.success(f"Email sent successfully to {name}")
+            st.success(f'Email {idx + 1} to {email} successfully sent!')
         except Exception as e:
-            st.error(f"Failed to send email to {name}: {str(e)}")
+            st.error(f'Failed to send email {idx + 1} to {email}: {e}')
 
-def process_uploaded_file(uploaded_file):
-    if uploaded_file is not None and allowed_file(uploaded_file.name):
-        wb = load_workbook(uploaded_file, data_only=True)
-        ws = wb.active
-
-        data = []
-        for row in ws.iter_rows(min_row=2, values_only=True):
-            row_data = {ws.cell(row=1, column=col_idx).value: cell_value for col_idx, cell_value in enumerate(row, start=1)}
-            data.append(row_data)
-
-        return pd.DataFrame(data)
-    return None
-
-st.title('Sekolah Harapan Bangsa')
-st.header('Welcome to the email and WhatsApp blast tool')
-
-uploaded_file = st.file_uploader("Upload Excel file", type=["xlsx"])
-
-if uploaded_file is not None:
-    st.write("File uploaded successfully!")
-
-    data = process_uploaded_file(uploaded_file)
-
-    if data is not None:
-        st.write(data)
-
-        email_announcement = st.checkbox("Email Announcement")
-        email_invoice = st.checkbox("Email Invoice")
-        email_proof_payment = st.checkbox("Email Proof of Payment")
+def handle_file_upload(announcement=False, invoice=False, proof_payment=False):
+    uploaded_file = st.file_uploader("Upload Excel file", type="xlsx")
+    if uploaded_file is not None:
+        df = pd.read_excel(uploaded_file)
+        email_list = df.to_dict(orient='records')
+        st.dataframe(df)
 
         if st.button("Send Emails"):
-            if email_announcement:
-                send_emails(data.to_dict('records'), announcement=True)
-            elif email_invoice:
-                send_emails(data.to_dict('records'), invoice=True)
-            elif email_proof_payment:
-                send_emails(data.to_dict('records'), proof_payment=True)
-            else:
-                st.warning("Please select an email option.")
-
-        whatsapp_announcement = st.checkbox("WhatsApp Announcement")
-        whatsapp_invoice = st.checkbox("WhatsApp Invoice")
-        whatsapp_proof_payment = st.checkbox("WhatsApp Proof of Payment")
-
+            send_emails(email_list, announcement, invoice, proof_payment)
+        
         if st.button("Send WhatsApp Messages"):
-            if whatsapp_announcement:
-                send_whatsapp_messages(data, announcement=True)
-            elif whatsapp_invoice:
-                send_whatsapp_messages(data, invoice=True)
-            elif whatsapp_proof_payment:
-                send_whatsapp_messages(data, proof_payment=True)
-            else:
-                st.warning("Please select a WhatsApp message option.")
-    else:
-        st.error("Failed to process the uploaded file. Please ensure it is a valid Excel file.")
-else:
-    st.info("Please upload an Excel file.")
+            send_whatsapp_messages(df, announcement, invoice, proof_payment)
 
-# Stop the virtual display
-vdisplay.stop()
+def main():
+    st.title('Communication Sender for SHB')
 
-# Close the SMTP server connection
-server.quit()
+    menu = ["Home", "Invoice", "Send Reminder", "Announcement"]
+    choice = st.sidebar.selectbox("Menu", menu)
+
+    if choice == "Home":
+        st.subheader("Home")
+        st.write("Welcome to the Communication Sender App!")
+
+    elif choice == "Announcement":
+        st.subheader("Announcement")
+        handle_file_upload(announcement=True)
+
+    elif choice == "Invoice":
+        st.subheader("Invoice")
+        handle_file_upload(invoice=True)
+
+    elif choice == "Send Reminder":
+        st.subheader("Send Reminder")
+        handle_file_upload(proof_payment=True)
+
+    # Add link to download template Excel file
+    st.markdown("[Download Template Excel file](https://drive.google.com/drive/folders/1Pnpmacr7n3rS1Uht8eUI8A75KFrSA7rt?usp=sharing)")
+
+if __name__ == '__main__':
+    main()
