@@ -1,9 +1,3 @@
-from pyvirtualdisplay import Display
-
-# Start virtual display
-display = Display(visible=0, size=(1024, 768))
-display.start()
-
 import streamlit as st
 import pandas as pd
 import smtplib
@@ -14,13 +8,7 @@ import pywhatkit as kit
 import time
 import warnings
 import webbrowser
-import pyautogui
 import os
-
-# Your existing script...
-
-# Stop virtual display
-display.stop()
 
 def apply_dark_mode():
     dark_mode_css = """
@@ -121,18 +109,16 @@ def send_whatsapp_messages(data, announcement=False, invoice=False, proof_paymen
         else:
             continue
 
-        while True:
-            try:
-                # Send WhatsApp message using the existing session
-                kit.sendwhatmsg_instantly(phone_number, message, wait_time=20)
-                
-                # Wait for 20 seconds to ensure the message is sent
-                time.sleep(20)
-                st.success(f"Message sent successfully to {phone_number}")
-                break  # Exit the loop if the message is sent successfully
-            except Exception as e:
-                st.error(f"Failed to send message to {phone_number}: {str(e)}. Retrying...")
-                time.sleep(20)  # Wait before retrying
+        try:
+            # Send WhatsApp message using the existing session
+            kit.sendwhatmsg_instantly(phone_number, message, wait_time=20)
+            
+            # Wait for 20 seconds to ensure the message is sent
+            time.sleep(20)
+            st.success(f"Message sent successfully to {phone_number}")
+        except Exception as e:
+            st.error(f"Failed to send message to {phone_number}: {str(e)}. Retrying...")
+            time.sleep(20)  # Wait before retrying
 
 
 # Ensure your DataFrame and main application logic
