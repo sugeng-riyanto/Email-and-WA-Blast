@@ -17,6 +17,11 @@ import webbrowser
 import pyautogui
 import os
 
+# Your existing script...
+
+# Stop virtual display
+display.stop()
+
 def apply_dark_mode():
     dark_mode_css = """
     <style>
