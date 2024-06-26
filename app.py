@@ -10,6 +10,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from openpyxl import load_workbook
 import pywhatkit as kit
+import pyautogui as pg
 import time
 import warnings
 import streamlit as st
@@ -54,7 +55,8 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def send_whatsapp_messages(data, announcement=False, invoice=False, proof_payment=False):
-    webbrowser.open("https://web.whatsapp.com")
+    # Open WhatsApp Web
+    kit.sendwhatmsg("+0000000000", "", 0, 0, wait_time=20, tab_close=True)  # Dummy message to open WhatsApp Web
     st.info("Please scan the QR code in the opened WhatsApp Web window.")
     time.sleep(45)
 
