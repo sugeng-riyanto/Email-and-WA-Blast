@@ -9,7 +9,15 @@ import warnings
 import webbrowser
 import os
 import pywhatkit as kit
+import os
+from xvfbwrapper import Xvfb
 
+vdisplay = Xvfb()
+vdisplay.start()
+
+# Your existing code here
+
+vdisplay.stop()
 # Suppress specific warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
