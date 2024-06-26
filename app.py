@@ -1,3 +1,6 @@
+import os
+os.environ["DISPLAY"] = ":0"
+
 import streamlit as st
 import pandas as pd
 import smtplib
@@ -9,7 +12,10 @@ import time
 import warnings
 import webbrowser
 import pyautogui
-import os
+
+pyautogui.FAILSAFE = False
+
+# Your existing code...
 
 def apply_dark_mode():
     dark_mode_css = """
@@ -30,6 +36,7 @@ def apply_dark_mode():
     </style>
     """
     st.markdown(dark_mode_css, unsafe_allow_html=True)
+
 
 apply_dark_mode()
 # Suppress specific warnings
