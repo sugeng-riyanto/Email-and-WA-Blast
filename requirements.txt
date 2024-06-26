@@ -1,4 +1,4 @@
-streamlit==1.36.0
+streamlit==1.24.1
 pandas==1.5.3
 openpyxl==3.1.2
 smtplib  # This comes with Python standard library, so it doesn't need to be installed separately
