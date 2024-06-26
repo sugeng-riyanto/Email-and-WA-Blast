@@ -1,3 +1,9 @@
+from pyvirtualdisplay import Display
+
+# Start virtual display
+display = Display(visible=0, size=(1024, 768))
+display.start()
+
 import streamlit as st
 import pandas as pd
 import smtplib
