@@ -4,11 +4,9 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from openpyxl import load_workbook
-import pywhatkit as kit
 import time
 import warnings
 import webbrowser
-import os
 
 def apply_dark_mode():
     dark_mode_css = """
@@ -109,19 +107,10 @@ def send_whatsapp_messages(data, announcement=False, invoice=False, proof_paymen
         else:
             continue
 
-        try:
-            # Send WhatsApp message using the existing session
-            kit.sendwhatmsg_instantly(phone_number, message, wait_time=20)
-            
-            # Wait for 20 seconds to ensure the message is sent
-            time.sleep(20)
-            st.success(f"Message sent successfully to {phone_number}")
-        except Exception as e:
-            st.error(f"Failed to send message to {phone_number}: {str(e)}. Retrying...")
-            time.sleep(20)  # Wait before retrying
-
-
-# Ensure your DataFrame and main application logic
+        url = f"https://wa.me/{phone_number}?text={webbrowser.quote(message)}"
+        webbrowser.open(url)
+        st.info(f"Sending message to {phone_number}. Please confirm the send action in the opened WhatsApp window.")
+        time.sleep(10)  # Wait for user to confirm the send action
 
 def send_emails(email_list, announcement=False, invoice=False, proof_payment=False):
     for idx, entry in enumerate(email_list):
@@ -178,25 +167,18 @@ def send_emails(email_list, announcement=False, invoice=False, proof_payment=Fal
             va = entry['virtual_account']
             name = entry['Nama_Siswa']
             email = entry['Email']
-            grade = entry['Grade']
-            sppbuljal = "{:,.2f}".format(entry['bulan_berjalan'])
-            ket1 = entry['Ket_1']
-            spplebih = "{:,.2f}".format(entry['SPP_30hari'])
-            ket2 = entry['Ket_2']
-            denda = "{:,.2f}".format(entry['Denda'])
-            ket3 = entry['Ket_3']
-            ket4 = entry['Ket_4']
-            total = "{:,.2f}".format(entry['Total'])
+            nominal = "{:,.2f}".format(entry['Nominal'])
+            periode = entry['Periode']
+            description = entry['Description']
             message = f"""
             Kepada Yth.<br>Orang Tua/Wali Murid <span style="color: #007bff;">{name}</span> (Kelas <span style="color: #007bff;">{grade}</span>)<br>
             <p>Salam Hormat,</p>
-            <p>Kami hendak menyampaikan info mengenai SPP:</p>
+            <p>Kami hendak menyampaikan info mengenai:</p>
             <ul>
-                <li><strong>SPP yang sedang berjalan:</strong> {sppbuljal} ({ket1})</li>
-                <li><strong>Denda:</strong> {denda} ({ket3})</li>
-                <li><strong>SPP bulan-bulan sebelumnya:</strong> {spplebih} ({ket2})</li>
-                <li><strong>Keterangan:</strong> {ket4}</li>
-                <li><strong>Total tagihan:</strong> {total}</li>
+                <li><strong>Subject:</strong> {subject}</li>
+                <li><strong>Nominal:</strong> Rp. {nominal}</li>
+                <li><strong>Periode:</strong> {periode}</li>
+                <li><strong>Description:</strong> {description}</li>
             </ul>
             <p>Terima kasih atas kerjasamanya.</p>
             <p>Admin Sekolah</p>
@@ -213,49 +195,37 @@ def send_emails(email_list, announcement=False, invoice=False, proof_payment=Fal
         msg['Subject'] = subject
         msg.attach(MIMEText(message, 'html'))
 
-        try:
-            server.sendmail(your_email, email, msg.as_string())
-            st.success(f'Email {idx + 1} to {email} successfully sent!')
-        except Exception as e:
-            st.error(f'Failed to send email {idx + 1} to {email}: {e}')
+        server.sendmail(your_email, email, msg.as_string())
+        st.success(f"Email sent to {email}")
 
-def handle_file_upload(announcement=False, invoice=False, proof_payment=False):
-    uploaded_file = st.file_uploader("Upload Excel file", type="xlsx")
-    if uploaded_file is not None:
-        df = pd.read_excel(uploaded_file)
-        email_list = df.to_dict(orient='records')
-        st.dataframe(df)
+    server.quit()
 
-        if st.button("Send Emails"):
-            send_emails(email_list, announcement, invoice, proof_payment)
-        
-        if st.button("Send WhatsApp Messages"):
-            send_whatsapp_messages(df, announcement, invoice, proof_payment)
-
+# Main function
 def main():
-    st.title('Communication Sender for SHB')
+    st.title('Email and WhatsApp Blast System')
+    st.sidebar.title('Actions')
 
-    menu = ["Home", "Invoice", "Send Reminder", "Announcement"]
-    choice = st.sidebar.selectbox("Menu", menu)
+    # Upload Excel file
+    uploaded_file = st.file_uploader("Choose an Excel file", type="xlsx")
+    if uploaded_file is not None:
+        if allowed_file(uploaded_file.name):
+            st.success('File uploaded successfully.')
+            # Load data
+            data = pd.read_excel(uploaded_file)
+            st.dataframe(data)
 
-    if choice == "Home":
-        st.subheader("Home")
-        st.write("Welcome to the Communication Sender App!")
+            # Email Blast
+            if st.sidebar.button('Send Email Blast'):
+                with st.spinner('Sending emails...'):
+                    send_emails(data.to_dict('records'), announcement=True)
 
-    elif choice == "Announcement":
-        st.subheader("Announcement")
-        handle_file_upload(announcement=True)
+            # WhatsApp Blast
+            if st.sidebar.button('Send WhatsApp Blast'):
+                with st.spinner('Sending WhatsApp messages...'):
+                    send_whatsapp_messages(data, announcement=True)
 
-    elif choice == "Invoice":
-        st.subheader("Invoice")
-        handle_file_upload(invoice=True)
+        else:
+            st.error("Please upload a valid Excel file (.xlsx).")
 
-    elif choice == "Send Reminder":
-        st.subheader("Send Reminder")
-        handle_file_upload(proof_payment=True)
-
-    # Add link to download template Excel file
-    st.markdown("[Download Template Excel file](https://drive.google.com/drive/folders/1Pnpmacr7n3rS1Uht8eUI8A75KFrSA7rt?usp=sharing)")
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
