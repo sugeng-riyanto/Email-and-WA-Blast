@@ -200,32 +200,30 @@ def send_emails(email_list, announcement=False, invoice=False, proof_payment=Fal
 
     server.quit()
 
-# Main function
 def main():
-    st.title('Email and WhatsApp Blast System')
-    st.sidebar.title('Actions')
+    st.title('Communication Sender for SHB')
 
-    # Upload Excel file
-    uploaded_file = st.file_uploader("Choose an Excel file", type="xlsx")
-    if uploaded_file is not None:
-        if allowed_file(uploaded_file.name):
-            st.success('File uploaded successfully.')
-            # Load data
-            data = pd.read_excel(uploaded_file)
-            st.dataframe(data)
+    menu = ["Home", "Invoice", "Send Reminder", "Announcement"]
+    choice = st.sidebar.selectbox("Menu", menu)
 
-            # Email Blast
-            if st.sidebar.button('Send Email Blast'):
-                with st.spinner('Sending emails...'):
-                    send_emails(data.to_dict('records'), announcement=True)
+    if choice == "Home":
+        st.subheader("Home")
+        st.write("Welcome to the Communication Sender App!")
 
-            # WhatsApp Blast
-            if st.sidebar.button('Send WhatsApp Blast'):
-                with st.spinner('Sending WhatsApp messages...'):
-                    send_whatsapp_messages(data, announcement=True)
+    elif choice == "Announcement":
+        st.subheader("Announcement")
+        handle_file_upload(announcement=True)
 
-        else:
-            st.error("Please upload a valid Excel file (.xlsx).")
+    elif choice == "Invoice":
+        st.subheader("Invoice")
+        handle_file_upload(invoice=True)
 
-if __name__ == "__main__":
+    elif choice == "Send Reminder":
+        st.subheader("Send Reminder")
+        handle_file_upload(proof_payment=True)
+
+    # Add link to download template Excel file
+    st.markdown("[Download Template Excel file](https://drive.google.com/drive/folders/1Pnpmacr7n3rS1Uht8eUI8A75KFrSA7rt?usp=sharing)")
+
+if __name__ == '__main__':
     main()
