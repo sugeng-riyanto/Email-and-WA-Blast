@@ -1,3 +1,6 @@
-streamlit==1.24.1
+streamlit==1.25.0
 pandas==2.0.3
-openpyxl==3.0.10
+openpyxl==3.1.2
+pywhatkit==5.4
+pyautogui==0.9.53
+mouseinfo==0.1.3
