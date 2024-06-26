@@ -9,27 +9,7 @@ import warnings
 import webbrowser
 import os
 
-def apply_dark_mode():
-    dark_mode_css = """
-    <style>
-    /* Set dark background and text color */
-    .css-1d391kg, .css-12oz5g7, .css-1y4p8pa {
-        background-color: #0e1117;
-        color: #ffffff;
-    }
-    /* Sidebar background color */
-    .css-1d3fmxh {
-        background-color: #0e1117;
-    }
-    /* Adjust text color */
-    .css-17eq0hr {
-        color: #ffffff;
-    }
-    </style>
-    """
-    st.markdown(dark_mode_css, unsafe_allow_html=True)
 
-apply_dark_mode()
 
 # Suppress specific warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
