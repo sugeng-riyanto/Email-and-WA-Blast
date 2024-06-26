@@ -7,6 +7,7 @@ from openpyxl import load_workbook
 import time
 import warnings
 import webbrowser
+import os
 
 def apply_dark_mode():
     dark_mode_css = """
@@ -29,6 +30,7 @@ def apply_dark_mode():
     st.markdown(dark_mode_css, unsafe_allow_html=True)
 
 apply_dark_mode()
+
 # Suppress specific warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -107,10 +109,18 @@ def send_whatsapp_messages(data, announcement=False, invoice=False, proof_paymen
         else:
             continue
 
-        url = f"https://wa.me/{phone_number}?text={webbrowser.quote(message)}"
-        webbrowser.open(url)
-        st.info(f"Sending message to {phone_number}. Please confirm the send action in the opened WhatsApp window.")
-        time.sleep(10)  # Wait for user to confirm the send action
+        while True:
+            try:
+                # Send WhatsApp message using the existing session
+                webbrowser.open(f"https://wa.me/{phone_number}?text={message}")
+                st.info(f"Message sent to {phone_number}. Please confirm sending in the opened tab.")
+                
+                # Wait for the user to manually confirm sending the message
+                time.sleep(30)
+                break  # Exit the loop if the message is sent successfully
+            except Exception as e:
+                st.error(f"Failed to send message to {phone_number}: {str(e)}. Retrying...")
+                time.sleep(20)  # Wait before retrying
 
 def send_emails(email_list, announcement=False, invoice=False, proof_payment=False):
     for idx, entry in enumerate(email_list):
@@ -167,18 +177,20 @@ def send_emails(email_list, announcement=False, invoice=False, proof_payment=Fal
             va = entry['virtual_account']
             name = entry['Nama_Siswa']
             email = entry['Email']
+            grade = entry['Grade']
             nominal = "{:,.2f}".format(entry['Nominal'])
-            periode = entry['Periode']
-            description = entry['Description']
+            transaction_date = entry['Tanggal']
+            proof_link = entry['Link']
+            payment_status = entry['Status']
             message = f"""
             Kepada Yth.<br>Orang Tua/Wali Murid <span style="color: #007bff;">{name}</span> (Kelas <span style="color: #007bff;">{grade}</span>)<br>
             <p>Salam Hormat,</p>
             <p>Kami hendak menyampaikan info mengenai:</p>
             <ul>
                 <li><strong>Subject:</strong> {subject}</li>
-                <li><strong>Nominal:</strong> Rp. {nominal}</li>
-                <li><strong>Periode:</strong> {periode}</li>
-                <li><strong>Description:</strong> {description}</li>
+                <li><strong>Tanggal Transaksi:</strong> {transaction_date}</li>
+                <li><strong>Status Pembayaran:</strong> {payment_status}</li>
+                <li><strong>Bukti Pembayaran:</strong> <a href='{proof_link}' style="color: #007bff;">{proof_link}</a></li>
             </ul>
             <p>Terima kasih atas kerjasamanya.</p>
             <p>Admin Sekolah</p>
@@ -195,11 +207,30 @@ def send_emails(email_list, announcement=False, invoice=False, proof_payment=Fal
         msg['Subject'] = subject
         msg.attach(MIMEText(message, 'html'))
 
-        server.sendmail(your_email, email, msg.as_string())
-        st.success(f"Email sent to {email}")
+        try:
+            server.sendmail(your_email, email, msg.as_string())
+            st.success(f"Email sent to {email}")
+        except Exception as e:
+            st.error(f"Failed to send email to {email}: {str(e)}")
 
-    server.quit()
-
+def handle_file_upload(announcement=False, invoice=False, proof_payment=False):
+    uploaded_file = st.file_uploader("Upload your Excel file", type=["xlsx"])
+    
+    if uploaded_file is not None:
+        try:
+            data = pd.read_excel(uploaded_file)
+            st.dataframe(data.head())
+            
+            if announcement:
+                send_whatsapp_messages(data, announcement=True)
+            elif invoice:
+                send_whatsapp_messages(data, invoice=True)
+            elif proof_payment:
+                send_whatsapp_messages(data, proof_payment=True)
+        except Exception as e:
+            st.error(f"Error processing the file: {str(e)}")
+    else:
+        st.warning("Please upload a file.")
 def main():
     st.title('Communication Sender for SHB')
 
