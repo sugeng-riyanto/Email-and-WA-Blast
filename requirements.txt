@@ -1,6 +1,7 @@
-streamlit==1.25.0
-pandas==2.0.3
+streamlit==1.23.1
+pandas==1.5.3
+smtplib==3.10.4
+email==6.0.0
 openpyxl==3.1.2
-pywhatkit==5.4
+pywhatkit==5.0
 pyautogui==0.9.53
-mouseinfo==0.1.3
