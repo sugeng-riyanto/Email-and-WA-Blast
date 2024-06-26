@@ -4,36 +4,11 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from openpyxl import load_workbook
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
-import time
+import pywhatkit
 import warnings
 import os
 
-def apply_dark_mode():
-    dark_mode_css = """
-    <style>
-    /* Set dark background and text color */
-    .css-1d391kg, .css-12oz5g7, .css-1y4p8pa {
-        background-color: #0e1117;
-        color: #ffffff;
-    }
-    /* Sidebar background color */
-    .css-1d3fmxh {
-        background-color: #0e1117;
-    }
-    /* Adjust text color */
-    .css-17eq0hr {
-        color: #ffffff;
-    }
-    </style>
-    """
-    st.markdown(dark_mode_css, unsafe_allow_html=True)
 
-apply_dark_mode()
 # Suppress specific warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -53,17 +28,6 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def send_whatsapp_messages(data, announcement=False, invoice=False, proof_payment=False):
-    # Setup Chrome WebDriver
-    service = Service(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service)
-    
-    # Open WhatsApp Web
-    driver.get("https://web.whatsapp.com")
-    st.info("Please scan the QR code in the opened WhatsApp Web window.")
-    
-    # Wait for user to scan QR code and login (increase if needed)
-    time.sleep(45)
-
     for index, row in data.iterrows():
         phone_number = str(row['Phone Number'])
         if not phone_number.startswith('+62'):
@@ -117,27 +81,11 @@ def send_whatsapp_messages(data, announcement=False, invoice=False, proof_paymen
             continue
 
         try:
-            # Search for the phone number
-            search_box = driver.find_element(By.XPATH, '//div[@contenteditable="true"][@data-tab="3"]')
-            search_box.clear()
-            search_box.send_keys(phone_number)
-            search_box.send_keys(Keys.RETURN)
-
-            time.sleep(2)  # Wait for the chat to load
-
-            # Send the message
-            message_box = driver.find_element(By.XPATH, '//div[@contenteditable="true"][@data-tab="1"]')
-            for line in message.split('\n'):
-                message_box.send_keys(line)
-                message_box.send_keys(Keys.SHIFT + Keys.ENTER)
-            message_box.send_keys(Keys.RETURN)
-
+            pywhatkit.sendwhatmsg_instantly(phone_number, message, wait_time=15)
             st.success(f"Message sent successfully to {phone_number}")
         except Exception as e:
             st.error(f"Failed to send message to {phone_number}: {str(e)}. Retrying...")
             time.sleep(10)  # Wait before retrying
-
-    driver.quit()
 
 
 # Ensure your DataFrame and main application logic
