@@ -1,5 +1,3 @@
 streamlit==1.24.1
 pandas==2.0.3
 openpyxl==3.0.10
-smtplib==0.1.1  # Note: smtplib is part of Python's standard library, not a separate package
-email==6.0.0  # Note: email is part of Python's standard library, not a separate package
