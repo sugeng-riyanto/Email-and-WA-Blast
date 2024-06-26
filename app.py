@@ -4,11 +4,13 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from openpyxl import load_workbook
-import pywhatkit as kit
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 import time
 import warnings
-import webbrowser
-import pyautogui
 import os
 
 def apply_dark_mode():
@@ -51,8 +53,12 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def send_whatsapp_messages(data, announcement=False, invoice=False, proof_payment=False):
-    # Open WhatsApp Web once
-    webbrowser.open("https://web.whatsapp.com")
+    # Setup Chrome WebDriver
+    service = Service(ChromeDriverManager().install())
+    driver = webdriver.Chrome(service=service)
+    
+    # Open WhatsApp Web
+    driver.get("https://web.whatsapp.com")
     st.info("Please scan the QR code in the opened WhatsApp Web window.")
     
     # Wait for user to scan QR code and login (increase if needed)
@@ -110,18 +116,28 @@ def send_whatsapp_messages(data, announcement=False, invoice=False, proof_paymen
         else:
             continue
 
-        while True:
-            try:
-                # Send WhatsApp message using the existing session
-                kit.sendwhatmsg_instantly(phone_number, message, wait_time=20)
-                
-                # Wait for 20 seconds to ensure the message is sent
-                time.sleep(20)
-                st.success(f"Message sent successfully to {phone_number}")
-                break  # Exit the loop if the message is sent successfully
-            except Exception as e:
-                st.error(f"Failed to send message to {phone_number}: {str(e)}. Retrying...")
-                time.sleep(20)  # Wait before retrying
+        try:
+            # Search for the phone number
+            search_box = driver.find_element(By.XPATH, '//div[@contenteditable="true"][@data-tab="3"]')
+            search_box.clear()
+            search_box.send_keys(phone_number)
+            search_box.send_keys(Keys.RETURN)
+
+            time.sleep(2)  # Wait for the chat to load
+
+            # Send the message
+            message_box = driver.find_element(By.XPATH, '//div[@contenteditable="true"][@data-tab="1"]')
+            for line in message.split('\n'):
+                message_box.send_keys(line)
+                message_box.send_keys(Keys.SHIFT + Keys.ENTER)
+            message_box.send_keys(Keys.RETURN)
+
+            st.success(f"Message sent successfully to {phone_number}")
+        except Exception as e:
+            st.error(f"Failed to send message to {phone_number}: {str(e)}. Retrying...")
+            time.sleep(10)  # Wait before retrying
+
+    driver.quit()
 
 
 # Ensure your DataFrame and main application logic
