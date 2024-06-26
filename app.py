@@ -8,20 +8,27 @@ import time
 import warnings
 import webbrowser
 import os
-
-
+import pywhatkit as kit
 
 # Suppress specific warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 # SMTP configuration
-your_name = "Sekolah Harapan Bangsa"
-your_email = "shsmodernhill@shb.sch.id"
-your_password = "jvvmdgxgdyqflcrf"
+your_name = os.getenv("SENDER_NAME", "Sekolah Harapan Bangsa")
+your_email = os.getenv("SENDER_EMAIL", "shsmodernhill@shb.sch.id")
+your_password = os.getenv("SENDER_PASSWORD", "jvvmdgxgdyqflcrf")
 
-server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
-server.ehlo()
-server.login(your_email, your_password)
+def initialize_smtp():
+    try:
+        server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+        server.ehlo()
+        server.login(your_email, your_password)
+        return server
+    except Exception as e:
+        st.error(f"SMTP initialization failed: {e}")
+        return None
+
+server = initialize_smtp()
 
 # Utility function to check allowed file extensions
 ALLOWED_EXTENSIONS = {'xlsx'}
@@ -30,18 +37,16 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def send_whatsapp_messages(data, announcement=False, invoice=False, proof_payment=False):
-    # Open WhatsApp Web once
     webbrowser.open("https://web.whatsapp.com")
     st.info("Please scan the QR code in the opened WhatsApp Web window.")
     
-    # Wait for user to scan QR code and login (increase if needed)
     time.sleep(45)
 
     for index, row in data.iterrows():
         phone_number = str(row['Phone Number'])
         if not phone_number.startswith('+62'):
             phone_number = f'+62{phone_number.lstrip("0")}'
-        
+
         if announcement:
             message = f"""
             Kepada Yth. Orang Tua/Wali Murid *{row['Nama_Siswa']}*,
@@ -64,9 +69,10 @@ def send_whatsapp_messages(data, announcement=False, invoice=False, proof_paymen
             • *Batas Tanggal Pembayaran:* {row['expired_date']}
             • *Sebesar:* Rp. {row['trx_amount']:,.2f}
             • Pembayaran via nomor *virtual account* (VA) BNI/Bank: *{row['virtual_account']}*
-        Terima kasih atas kerjasamanya.
-        Admin Sekolah
-        Jika ada pertanyaan atau hendak konfirmasi dapat menghubungi:
+            Terima kasih atas kerjasamanya.
+            Admin Sekolah
+            
+            Jika ada pertanyaan atau hendak konfirmasi dapat menghubungi:
             • Ibu Penna (Kasir): https://bit.ly/mspennashb
             • Bapak Supatmin (Admin SMP & SMA): https://bit.ly/wamrsupatminshb4
             """
@@ -91,21 +97,19 @@ def send_whatsapp_messages(data, announcement=False, invoice=False, proof_paymen
 
         while True:
             try:
-                # Send WhatsApp message using the existing session
                 kit.sendwhatmsg_instantly(phone_number, message, wait_time=20)
-                
-                # Wait for 20 seconds to ensure the message is sent
                 time.sleep(20)
                 st.success(f"Message sent successfully to {phone_number}")
-                break  # Exit the loop if the message is sent successfully
+                break
             except Exception as e:
                 st.error(f"Failed to send message to {phone_number}: {str(e)}. Retrying...")
-                time.sleep(20)  # Wait before retrying
-
-
-# Ensure your DataFrame and main application logic
+                time.sleep(20)
 
 def send_emails(email_list, announcement=False, invoice=False, proof_payment=False):
+    if not server:
+        st.error("Email server not initialized.")
+        return
+
     for idx, entry in enumerate(email_list):
         if announcement:
             subject = entry['Subject']
@@ -204,16 +208,18 @@ def send_emails(email_list, announcement=False, invoice=False, proof_payment=Fal
 def handle_file_upload(announcement=False, invoice=False, proof_payment=False):
     uploaded_file = st.file_uploader("Upload Excel file", type="xlsx")
     if uploaded_file is not None:
-        df = pd.read_excel(uploaded_file)
-        email_list = df.to_dict(orient='records')
-        st.dataframe(df)
+        try:
+            df = pd.read_excel(uploaded_file)
+            email_list = df.to_dict(orient='records')
+            st.dataframe(df)
 
-        if st.button("Send Emails"):
-            send_emails(email_list, announcement, invoice, proof_payment)
-        
-        if st.button("Send WhatsApp Messages"):
-            send_whatsapp_messages(df, announcement, invoice, proof_payment)
-
+            if st.button("Send Emails"):
+                send_emails(email_list, announcement, invoice, proof_payment)
+            
+            if st.button("Send WhatsApp Messages"):
+                send_whatsapp_messages(df, announcement, invoice, proof_payment)
+        except Exception as e:
+            st.error(f"Error reading the Excel file: {e}")
 
 def main():
     st.title('Communication Sender for SHB')
@@ -237,7 +243,6 @@ def main():
         st.subheader("Send Reminder")
         handle_file_upload(proof_payment=True)
 
-    # Add link to download template Excel file
     st.markdown("[Download Template Excel file](https://drive.google.com/drive/folders/1Pnpmacr7n3rS1Uht8eUI8A75KFrSA7rt?usp=sharing)")
 
 if __name__ == '__main__':
